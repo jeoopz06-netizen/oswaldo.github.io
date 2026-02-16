@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>La Papu Vista</title>
+  <style>
+    body { background:#181818; color:#fff; font-family:Arial,sans-serif; margin:0; }
+    header { background:#202020; padding:15px; text-align:center; font-size:1.5em; font-weight:bold; }
+    .container { display:flex; padding:20px; gap:20px; }
+    .player { flex:3; }
+    video { width:100%; border-radius:8px; background:#000; }
+    .sidebar { flex:1; display:flex; flex-direction:column; gap:10px; max-height:80vh; overflow:auto; }
+    .video-item { background:#202020; padding:10px; border-radius:6px; cursor:pointer; display:flex; gap:10px; align-items:center; }
+    .video-item img { width:120px; height:70px; object-fit:cover; border-radius:4px; }
+    .video-item:hover { background:#333; }
+    .empty { opacity:0.7; font-size:0.95rem; }
+  </style>
+
+  <script src="//cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer>
+    window.addEventListener('DOMContentLoaded', async () => {
+      const supabaseUrl = "https://xsmxwjpgjfipxkgocitc.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXh3anBnamZpcHhrZ29jaXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjAwMjUsImV4cCI6MjA4NjgzNjAyNX0.KTWje5RPDXGChabHjeIEYwgygX_z58p0FpBmdA6cWD4"; // <-- Anon key real (JWT)
+      const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+      const BUCKET = "videos";
+      // Si tus videos están en una subcarpeta, ponla aquí, por ejemplo: 'pelis/'
+      const DEFAULT_PREFIX = ""; // '' = raíz del bucket
+
+      const ALLOWED_EXTENSIONS = ["mp4", "webm", "ogg", "mov", "m4v"];
+      const isVideo = (name) => {
+        const ext = name.split(".").pop()?.toLowerCase();
+        return ALLOWED_EXTENSIONS.includes(ext || "");
+      };
+
+      async function cargarListaVideos(prefix = DEFAULT_PREFIX) {
+        console.log("Listando bucket:", BUCKET, "con prefix:", prefix || "(raíz)");
+        const { data, error } = await sb.storage.from(BUCKET).list(prefix, {
+          limit: 100,
+          sortBy: { column: "name", order: "asc" }
+        });
+
+        if (error) {
+          console.error("Error al listar videos:", error);
+          alert("No se pudo listar el bucket. Revisa consola para detalles.");
+          return;
+        }
+
+        console.log("Respuesta de list():", data);
+        const lista = document.getElementById("videoList");
+        lista.innerHTML = "";
+
+        // 'data' puede traer carpetas (sin extensión) y archivos. Nos quedamos con los que parecen video.
+        const archivos = (data || []).filter(item => item?.name && isVideo(item.name));
+
+        if (archivos.length === 0) {
+          const msg = document.createElement("div");
+          msg.className = "empty";
+          msg.textContent = "No se encontraron videos en este bucket/prefix.";
+          lista.appendChild(msg);
+          // Limpia el reproductor
+          const videoPlayer = document.getElementById("videoPlayer");
+          videoPlayer.removeAttribute("src");
+          videoPlayer.load();
+          return;
+        }
+
+        archivos.forEach(file => {
+          const filePath = prefix ? `${prefix.replace(/\/?$/, "/")}${file.name}` : file.name;
+
+          // Usa getPublicUrl para no equivocarte armando la URL
+          const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(filePath);
+          const publicUrl = pub.publicUrl;
+
+          const item = document.createElement("div");
+          item.className = "video-item";
+          const label = file.name;
+          const thumbText = encodeURIComponent(label.length > 18 ? label.slice(0,18) + "..." : label);
+          item.innerHTML = `
+            https://via.placeholder.com/120x70.png?text=${thumbText}
+            <span title="${label}">${label}</span>
+          `;
+          item.onclick = () => cambiarVideo(filePath);
+          lista.appendChild(item);
+        });
+
+        // Reproduce el primero
+        const firstPath = prefix ? `${prefix.replace(/\/?$/, "/")}${archivos[0].name}` : archivos[0].name;
+        cambiarVideo(firstPath);
+      }
+
+      function cambiarVideo(filePath) {
+        const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(filePath);
+        const url = pub.publicUrl;
+
+        const videoPlayer = document.getElementById("videoPlayer");
+        videoPlayer.pause();
+        videoPlayer.src = url;
+        videoPlayer.load(); // no forzamos autoplay
+        console.log("Reproduciendo:", filePath, "→", url);
+      }
+
+      // 🔎 Prueba rápida de bucket público (devuelve 200 si es público)
+      const test = sb.storage.from(BUCKET).getPublicUrl("___archivo_inexistente.mp4");
+      console.log("URL pública de test:", test.data.publicUrl);
+
+      // Carga inicial
+      cargarListaVideos();
+    });
+  </script>
+</head>
+<body>
+  <header>
+    <h1>📺 La Papu Vista</h1>
+  </header>
+
+  <div class="container">
+    <div class="player">
+      <video id="videoPlayer" controls preload="metadata">Tu navegador no soporta video.</video>
+    </div>
+    <div class="sidebar" id="videoList"></div>
+  </div>
+</body>
+</html>
