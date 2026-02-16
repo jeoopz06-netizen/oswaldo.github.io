@@ -1,45 +1,61 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width">
-
- <title>Ejemplo de servicio</title>
-
-</head>
-
-<body>
- <h1>Ejemplo de servicio</h1>
-
- <button onclick="ejecuta()">
-  Ejecuta
- </button>
-
- <script>
-
-  async function ejecuta() {
-   try {
-    // Se conecta a servicio.php y recibe su respuesta.
-    const resp =
-     await fetch("rar.php")
-    if (resp.ok) {
-     const texto =
-      await resp.text()
-     alert(texto)
-    } else {
-     throw new Error(
-      resp.statusText)
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Hub en GitHub</title>
+  <style>
+    body {
+      background-color: #181818;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      text-align: center;
     }
-   } catch (error) {
-    console.error(error)
-    alert(error.message)
-   }
-  }
+    header {
+      background: #202020;
+      padding: 20px;
+      font-size: 1.8em;
+      font-weight: bold;
+    }
+    nav {
+      margin: 30px auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    nav a {
+      background: #2a2a2a;
+      padding: 15px 25px;
+      border-radius: 6px;
+      color: #fff;
+      text-decoration: none;
+      transition: background 0.3s;
+    }
+    nav a:hover {
+      background: #383838;
+    }
+    iframe {
+      width: 90%;
+      height: 600px;
+      border: none;
+      margin-top: 30px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>📂 Mi Hub de Proyectos</header>
 
- </script>
+  <!-- Menú de enlaces -->
+  <nav>
+    <a href="pagina1.html" target="visor">Página 1</a>
+    <a href="pagina2.html" target="visor">Página 2</a>
+    <a href="pagina3.html" target="visor">Página 3</a>
+  </nav>
 
+  <!-- Visor embebido -->
+  <iframe name="visor" src="pagina1.html"></iframe>
 </body>
-
 </html>
