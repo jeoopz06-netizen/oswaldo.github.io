@@ -50,12 +50,18 @@
 
   <!-- Menú de enlaces -->
   <nav>
-    <a href="streams.html" target="visor">Página 1</a>
-    <a href="pagina2.html" target="visor">Página 2</a>
-    <a href="pagina3.html" target="visor">Página 3</a>
+    <a href="#" onclick="abrirPagina('streams.html')">Página 1</a>
+    <a href="#" onclick="abrirPagina('pagina2.html')">Página 2</a>
+    <a href="#" onclick="abrirPagina('pagina3.html')">Página 3</a>
   </nav>
 
   <!-- Visor embebido -->
-  <iframe name="visor" src="pagina1.html"></iframe>
+  <iframe id="visor" src="streams.html"></iframe>
+
+  <script>
+    function abrirPagina(archivo) {
+      document.getElementById("visor").src = archivo;
+    }
+  </script>
 </body>
 </html>
