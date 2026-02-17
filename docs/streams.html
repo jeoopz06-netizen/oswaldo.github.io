@@ -8,14 +8,13 @@
     body { background:#121212; color:#fff; font-family:Arial,sans-serif; margin:0; }
     header { background:#1f1f1f; padding:15px; text-align:center; font-size:1.8em; font-weight:bold; color:#ff5252; }
     .container { display:flex; padding:20px; gap:20px; }
-    .player { flex:3; display:flex; align-items:center; justify-content:center; }
+    .player { flex:3; }
     video { width:100%; border-radius:10px; background:#000; box-shadow:0 0 15px rgba(0,0,0,0.6); }
     .sidebar { flex:1; display:flex; flex-direction:column; gap:15px; max-height:80vh; overflow:auto; }
     .video-item { background:#1f1f1f; padding:8px; border-radius:8px; cursor:pointer; transition:transform 0.2s, background 0.2s; }
     .video-item:hover { background:#2a2a2a; transform:scale(1.03); }
     .video-thumb { width:100%; border-radius:6px; object-fit:cover; }
     .empty { opacity:0.7; font-size:0.95rem; text-align:center; }
-    .placeholder { color:#aaa; font-size:1.2rem; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -62,6 +61,7 @@
       lista.innerHTML="";
       if(paths.length===0){
         lista.innerHTML='<div class="empty">No se encontraron videos.</div>';
+        player.removeAttribute("src"); player.load();
         return;
       }
       paths.forEach(p=>{
@@ -69,13 +69,14 @@
         const url = pub.publicUrl;
         const item=document.createElement("div");
         item.className="video-item";
-        // Miniatura con <video> pequeño
+        // Usamos un <video> pequeño como thumbnail
         item.innerHTML=`
           <video class="video-thumb" src="${url}" muted preload="metadata"></video>
         `;
         item.onclick=()=>cambiarVideo(p);
         lista.appendChild(item);
       });
+      cambiarVideo(paths[0]);
     }
 
     function cambiarVideo(path){
@@ -84,7 +85,6 @@
       player.pause();
       player.src=url;
       player.load();
-      player.play();
       console.log("▶️ Reproduciendo:", path, "→", url);
     }
 
@@ -97,7 +97,7 @@
   <header>📺 La Papu Vista</header>
   <div class="container">
     <div class="player">
-      <video id="videoPlayer" controls preload="metadata" class="placeholder">Selecciona un video del menú</video>
+      <video id="videoPlayer" controls preload="metadata">Tu navegador no soporta video.</video>
     </div>
     <div class="sidebar" id="videoList"></div>
   </div>
