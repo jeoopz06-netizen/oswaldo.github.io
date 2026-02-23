@@ -70,118 +70,127 @@ border:1px solid var(--line);border-radius:10px;padding:8px;background:#151522}
 <body>
 
 <header>
-<h1>Explora la Pizzería FNAF</h1>
-<button id="openStore">🛍️ Abrir tienda</button>
+  <h1>Explora la Pizzería FNAF</h1>
+  <button id="openStore">🛍️ Abrir tienda</button>
 </header>
 
 <div class="toolbar">
-<button id="prevBtn">⟵ Anterior</button>
-<button id="nextBtn">Siguiente ⟶</button>
-<div class="scene-buttons" id="sceneButtons"></div>
+  <button id="prevBtn">⟵ Anterior</button>
+  <button id="nextBtn">Siguiente ⟶</button>
+  <div class="scene-buttons" id="sceneButtons"></div>
 </div>
 
 <div id="viewer"></div>
 
 <footer>
-<div class="scene-name" id="sceneName"></div>
-<div class="status" id="status">Listo</div>
+  <div class="scene-name" id="sceneName"></div>
+  <div class="status" id="status">Listo</div>
 </footer>
 
 <button class="fab" id="openCart">🛒 <span class="badge" id="cartCount">0</span></button>
 <button class="fab fab-left" id="openStore2">🛍️</button>
 
 <aside class="panel panel-left" id="storePanel">
-<button id="closeStore">✕</button>
-<h2>Tienda</h2>
-<div class="products" id="products"></div>
+  <button id="closeStore">✕</button>
+  <h2>Tienda</h2>
+  <div class="products" id="products"></div>
 </aside>
 
 <aside class="panel panel-right" id="cartPanel">
-<button id="closeCart">✕</button>
-<h2>Carrito</h2>
-<div id="cartBody"></div>
-<div class="totals" id="totals"></div>
-<div id="walletBrick_container" style="margin-top:12px;"></div>
-<button class="buy" id="checkoutBtn">Pagar ahora</button>
+  <button id="closeCart">✕</button>
+  <h2>Carrito</h2>
+  <div id="cartBody"></div>
+  <div class="totals" id="totals"></div>
+  <div id="walletBrick_container" style="margin-top:12px;"></div>
+  <button class="buy" id="checkoutBtn">Pagar ahora</button>
 </aside>
 
 <script type="module">
 import { Viewer } from "@photo-sphere-viewer/core";
 
+/** === CONFIGURAR ===
+ * URL pública de tu backend en Render (API)
+ * Si cambias el nombre del servicio, actualiza esta URL.
+ */
+const RENDER_API_URL = 'https://oswaldo-github-io-1.onrender.com';
+
+/** Tu Public Key de Mercado Pago (frontend).
+ * Nota: Si usas modo pruebas, usa la TEST-.... ; para producción, APP_USR-....
+ */
+const MP_PUBLIC_KEY = 'APP_USR-e9d97574-7047-4319-a8ac-5577a673a55a';
+
 const SCENES=[
-{id:'lobby',name:'Lobby',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'},
-{id:'pasillo',name:'Pasillo',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'},
-{id:'oficina',name:'Oficina',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'}
+  {id:'lobby',name:'Lobby',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'},
+  {id:'pasillo',name:'Pasillo',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'},
+  {id:'oficina',name:'Oficina',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'}
 ];
 
 const PRODUCTS=[
-{id:'pizza',name:'Pizza Pepperoni',price:129,img:'https://images.unsplash.com/photo-1548366086-7a4e0b52e3d8?q=80&w=400'},
-{id:'combo',name:'Combo FNAF',price:189,img:'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?q=80&w=400'},
-{id:'playera',name:'Playera FNAF',price:249,img:'https://images.unsplash.com/photo-1520975693410-001d8fcbf8a5?q=80&w=400'}
+  {id:'pizza',name:'Pizza Pepperoni',price:129,img:'https://images.unsplash.com/photo-1548366086-7a4e0b52e3d8?q=80&w=400'},
+  {id:'combo',name:'Combo FNAF',price:189,img:'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?q=80&w=400'},
+  {id:'playera',name:'Playera FNAF',price:249,img:'https://images.unsplash.com/photo-1520975693410-001d8fcbf8a5?q=80&w=400'}
 ];
 
 const viewer=new Viewer({
-container:document.getElementById('viewer'),
-panorama:SCENES[0].url,
-navbar:['zoom','fullscreen']
+  container:document.getElementById('viewer'),
+  panorama:SCENES[0].url,
+  navbar:['zoom','fullscreen']
 });
 
 let currentIndex=0;
 const sceneButtons=document.getElementById('sceneButtons');
 SCENES.forEach((s,i)=>{
-const b=document.createElement('button');
-b.textContent=s.name;
-b.onclick=()=>viewer.setPanorama(s.url);
-sceneButtons.appendChild(b);
+  const b=document.createElement('button');
+  b.textContent=s.name;
+  b.onclick=()=>viewer.setPanorama(s.url);
+  sceneButtons.appendChild(b);
 });
 
 let cart=[];
 const fmt=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'});
+
 function renderProducts(){
-const el=document.getElementById('products');
-PRODUCTS.forEach(p=>{
-const d=document.createElement('div');
-d.className='card';
-d.innerHTML=`<img src="${p.img}">
-<div><b>${p.name}</b><div class="price">${fmt.format(p.price)}</div></div>
-<div class="actions"><button>Agregar</button></div>`;
-d.querySelector('button').onclick=()=>{cart.push({id:p.id,qty:1});renderCart()};
-el.appendChild(d);
-});
+  const el=document.getElementById('products');
+  el.innerHTML = '';
+  PRODUCTS.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='card';
+    d.innerHTML=`<img src="${p.img}">
+      <div><b>${p.name}</b><div class="price">${fmt.format(p.price)}</div></div>
+      <div class="actions"><button>Agregar</button></div>`;
+    d.querySelector('button').onclick=()=>{cart.push({id:p.id,qty:1});renderCart()};
+    el.appendChild(d);
+  });
 }
 renderProducts();
 
 function renderCart(){
-document.getElementById('cartCount').textContent=cart.length;
-const body=document.getElementById('cartBody');
-body.innerHTML='';
-if(cart.length===0){body.innerHTML='<div class="empty">Vacío</div>';return;}
-let total=0;
-cart.forEach(item=>{
-const p=PRODUCTS.find(x=>x.id===item.id);
-total+=p.price;
-body.innerHTML+=`<div class="cart-row">
-<img src="${p.img}">
-<div>${p.name}</div>
-<div>${fmt.format(p.price)}</div>
-</div>`;
-});
-document.getElementById('totals').innerHTML=
-`<div class="line"><b>Total</b><b>${fmt.format(total)}</b></div>`;
+  document.getElementById('cartCount').textContent=cart.length;
+  const body=document.getElementById('cartBody');
+  body.innerHTML='';
+  if(cart.length===0){body.innerHTML='<div class="empty">Vacío</div>';return;}
+  let total=0;
+  cart.forEach(item=>{
+    const p=PRODUCTS.find(x=>x.id===item.id);
+    total+=p.price; // si luego manejas qty, cambia a p.price * item.qty
+    body.innerHTML+=`<div class="cart-row">
+      <img src="${p.img}">
+      <div>${p.name}</div>
+      <div>${fmt.format(p.price)}</div>
+    </div>`;
+  });
+  document.getElementById('totals').innerHTML=
+    `<div class="line"><b>Total</b><b>${fmt.format(total)}</b></div>`;
 }
 renderCart();
 
-const MP_PUBLIC_KEY='APP_USR-e9d97574-7047-4319-a8ac-5577a673a55a';
-
 document.getElementById('checkoutBtn').addEventListener('click', async () => {
-
   if (cart.length === 0) {
     alert('Tu carrito está vacío');
     return;
   }
 
   try {
-
     // Convertir carrito a items
     const items = cart.map(x => {
       const p = PRODUCTS.find(pp => pp.id === x.id);
@@ -191,29 +200,29 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
         unit_price: p.price
       };
     });
+
     console.log("ENVIANDO ITEMS:", items);
-    // Llamar a tu backend
-    const response = await fetch('/api/create_preference', {
+
+    // Llamar a tu backend en Render
+    const response = await fetch(`${RENDER_API_URL}/api/create_preference`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items,
         external_reference: `ORDER-${Date.now()}`
       })
     });
 
-    const data = await response.json();
-
+    // Si la API de tu backend devolvió error, muéstralo y corta
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      console.error(data);
-      alert('Error creando preferencia');
+      console.error('MP ERROR →', data);
+      alert('Error creando preferencia. Revisa la consola para más detalle.');
       return;
     }
 
-    // Crear botón Mercado Pago
-    const mp = new MercadoPago('APP_USR-e9d97574-7047-4319-a8ac-5577a673a55a');
+    // Crear botón Mercado Pago (Wallet Brick)
+    const mp = new MercadoPago(MP_PUBLIC_KEY);
     const bricksBuilder = mp.bricks();
 
     // Limpiar contenedor
@@ -227,12 +236,14 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('Error en el proceso de pago:', error);
     alert('Error en el proceso de pago');
   }
-
 });
 
+// Abrir/cerrar paneles
+const storePanel = document.getElementById('storePanel');
+const cartPanel = document.getElementById('cartPanel');
 document.getElementById('openStore').onclick=()=>storePanel.classList.add('open');
 document.getElementById('openStore2').onclick=()=>storePanel.classList.add('open');
 document.getElementById('closeStore').onclick=()=>storePanel.classList.remove('open');
