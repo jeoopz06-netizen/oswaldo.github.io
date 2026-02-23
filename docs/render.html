@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pizzería FNAF 360° + Tienda</title>
+<title>la salida</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core/index.min.css" />
 
@@ -70,7 +70,7 @@ border:1px solid var(--line);border-radius:10px;padding:8px;background:#151522}
 <body>
 
 <header>
-  <h1>Explora la Pizzería FNAF</h1>
+  <h1>Explora el mundo</h1>
   <button id="openStore">🛍️ Abrir tienda</button>
 </header>
 
@@ -121,14 +121,14 @@ const MP_PUBLIC_KEY = 'APP_USR-e9d97574-7047-4319-a8ac-5577a673a55a';
 
 const SCENES=[
   {id:'lobby',name:'Lobby',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'},
-  {id:'pasillo',name:'Pasillo',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'},
-  {id:'oficina',name:'Oficina',url:'https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg'}
+  {id:'pasillo',name:'Pasillo',url:'https://cdn.polyhaven.com/asset_img/primary/fouriesburg_mountain_lookout.png?height=760&quality=95'},
+  {id:'oficina',name:'Oficina',url:'https://cdn.polyhaven.com/asset_img/primary/golden_gate_hills.png?height=760&quality=95'}
 ];
 
 const PRODUCTS=[
-  {id:'pizza',name:'Pizza Pepperoni',price:129,img:'https://images.unsplash.com/photo-1548366086-7a4e0b52e3d8?q=80&w=400'},
+  {id:'pizza',name:'Pizza Pepperoni',price:129,img:'https://images3.memedroid.com/images/UPLOADED247/63bcf7128eb32.jpeg'},
   {id:'combo',name:'Combo FNAF',price:189,img:'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?q=80&w=400'},
-  {id:'playera',name:'Playera FNAF',price:249,img:'https://images.unsplash.com/photo-1520975693410-001d8fcbf8a5?q=80&w=400'}
+  {id:'playera',name:'Playera FNAF',price:249,img:'https://c.tenor.com/yFe8fgyL_RoAAAAC/hombre-morado-bailando.gif'}
 ];
 
 const viewer=new Viewer({
@@ -253,3 +253,4 @@ document.getElementById('closeCart').onclick=()=>cartPanel.classList.remove('ope
 
 </body>
 </html>
+
