@@ -7,26 +7,13 @@
     "node": "18.x"
   },
   "scripts": {
-<<<<<<< HEAD
     "start": "node server.js"
-=======
-    "start": "node server.js",
-    "dev": "nodemon server.js"
->>>>>>> e55eb72fbd6ed832c4d34e2dc522165bfa63b001
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
-<<<<<<< HEAD
     "mercadopago": "^2.12.0",
     "nodemailer": "^8.0.1"
-=======
-    "mercadopago": "^1.5.8",
-    "nodemailer": "^6.9.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
->>>>>>> e55eb72fbd6ed832c4d34e2dc522165bfa63b001
   }
 }
