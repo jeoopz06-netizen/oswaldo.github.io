@@ -37,8 +37,11 @@ function calcularTotales(items) {
 }
 
 // 🟢 Endpoint principal
+// 🟢 Endpoint principal
 app.post("/api/create_preference", async (req, res) => {
   try {
+    console.log("📩 Petición recibida");
+
     const { items = [], payer_email } = req.body;
 
     if (!items.length) {
@@ -77,6 +80,42 @@ app.post("/api/create_preference", async (req, res) => {
       <p>Estado del pago: PROCESANDO</p>
     `;
 
+    console.log("📧 Enviando correo a:", payer_email);
+
+    // 🔹 Enviar correo
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: payer_email || process.env.EMAIL_USER,
+      subject: "Tu ticket de compra",
+      html: ticketHtml,
+    });
+
+    console.log("✅ Correo enviado:", info.response);
+
+    // 🔹 Crear preferencia Mercado Pago
+    const preference = await mercadopago.preferences.create({
+      items: items,
+      back_urls: {
+        success: "https://tu-dominio.com/success",
+        failure: "https://tu-dominio.com/failure",
+        pending: "https://tu-dominio.com/pending",
+      },
+      auto_return: "approved",
+    });
+
+    res.json({
+      id: preference.body.id,
+    });
+
+  } catch (error) {
+    console.error("❌ Error en el servidor:", error);
+    res.status(500).json({
+      error: "SERVER_ERROR",
+      message: error.message,
+    });
+  }
+});
+
     // 🔹 Enviar correo (aunque falle el pago)
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -113,3 +152,4 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+
