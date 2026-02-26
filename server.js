@@ -9,6 +9,15 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 const app = express();
 app.use(cors());
@@ -31,7 +40,44 @@ app.post('/api/create_preference', async (req, res) => {
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'EMPTY_ITEMS', details: 'No hay items en la orden' });
     }
+    const subtotal = items.reduce(
+  (acc, item) => acc + item.unit_price * item.quantity,
+  0
+);
 
+const iva = subtotal * 0.16;
+const total = subtotal + iva;
+
+const productosHtml = items.map(i => `
+<tr>
+  <td>${i.title}</td>
+  <td>${i.quantity}</td>
+  <td>$${i.unit_price}</td>
+</tr>
+`).join("");
+
+const ticketHtml = `
+<h2>Ticket de compra</h2>
+<table border="1" cellpadding="5" cellspacing="0">
+<tr>
+<th>Producto</th>
+<th>Cantidad</th>
+<th>Precio</th>
+</tr>
+${productosHtml}
+</table>
+<p><strong>Subtotal:</strong> $${subtotal.toFixed(2)}</p>
+<p><strong>IVA (16%):</strong> $${iva.toFixed(2)}</p>
+<h3>Total: $${total.toFixed(2)}</h3>
+<p>Estado del pago: PROCESANDO</p>
+`;
+
+await transporter.sendMail({
+  from: process.env.EMAIL_USER,
+  to: payer_email,
+  subject: "Tu ticket de compra",
+  html: ticketHtml,
+});
     const preference = {
       items: items.map(i => ({
         title: i.title,
