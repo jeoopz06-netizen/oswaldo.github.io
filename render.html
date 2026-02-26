@@ -107,12 +107,33 @@ border:1px solid var(--line);border-radius:10px;padding:8px;background:#151522}
 
 <script type="module">
 import { Viewer } from "@photo-sphere-viewer/core";
+  
+function loadScene(index) {
+  viewer.setPanorama(SCENES[index].url);
+  document.getElementById("sceneName").textContent = SCENES[index].name;
+}
+let currentScene = 0;
 
+document.getElementById("nextBtn").onclick = () => {
+  currentScene = (currentScene + 1) % SCENES.length;
+  loadScene(currentScene);
+};
+
+document.getElementById("prevBtn").onclick = () => {
+  currentScene =
+    (currentScene - 1 + SCENES.length) % SCENES.length;
+  loadScene(currentScene);
+};
+  
 const RENDER_API_URL = "https://oswaldo-github-io-1.onrender.com";
 const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
 
 const SCENES = [
-  { id: "lobby", name: "Lobby", url: "https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg" }
+  { id: "lobby", name: "Lobby", url: "https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg" },
+  { id: "rar", name: "rar", url: "https://cdn.polyhaven.com/asset_img/primary/golden_gate_hills.png?height=760&quality=95" },
+  { id: "rar2", name: "rar2", url: "https://cdn.polyhaven.com/asset_img/primary/fouriesburg_mountain_lookout.png?height=760&quality=95" }
+  
+  
 ];
 
 const PRODUCTS = [
