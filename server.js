@@ -1,11 +1,12 @@
 // server/index.js
+
 import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import nodemailer from "nodemailer";
+import { Resend } from 'resend';
 
 dotenv.config();
 
@@ -24,24 +25,8 @@ if (!MP_ACCESS_TOKEN) {
   console.warn('⚠️ MP_ACCESS_TOKEN no está definido.');
 }
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 const isHttpsBase = BASE_URL.startsWith('https://');
-
-/* =========================
-   CONFIGURACIÓN EMAIL
-========================= */
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // false para TLS
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
 
 /* =========================
    CREAR PREFERENCIA
@@ -145,15 +130,18 @@ app.post('/api/create_preference', async (req, res) => {
        ENVIAR CORREO (NO BLOQUEA)
     ========================= */
 
-    if (payer_email && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: payer_email,
-        subject: "Tu ticket de compra",
-        html: ticketHtml,
-      }).catch(err => {
-        console.error("❌ Error enviando correo:", err.message);
-      });
+    if (payer_email && process.env.RESEND_API_KEY) {
+      try {
+        await resend.emails.send({
+          from: 'onboarding@resend.dev', // temporal (modo prueba)
+          to: payer_email,
+          subject: 'Tu ticket de compra',
+          html: ticketHtml,
+        });
+        console.log('📧 Correo enviado correctamente');
+      } catch (err) {
+        console.error('❌ Error enviando correo:', err.message);
+      }
     }
 
     /* =========================
@@ -177,6 +165,7 @@ app.post('/api/create_preference', async (req, res) => {
 ========================= */
 
 const PORT = process.env.PORT || 3001;
+
 app.listen(PORT, () =>
   console.log(`MP server running on http://localhost:${PORT}`)
 );
