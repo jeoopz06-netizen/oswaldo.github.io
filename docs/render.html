@@ -1,3 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>la salida</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core/index.min.css" />
+
+<style>
+:root {
+  --bg:#0f0f13; --panel:#121219; --line:#242436;
+  --text:#e6e6e6; --muted:#9aa0a6;
+  --accent:#8a2be2; --accent-2:#ff007a;
+  --ok:#27ae60;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text)}
+body.no-scroll{overflow:hidden}
+header{padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}
+header h1{margin:0;font-size:18px}
+.toolbar{display:flex;gap:8px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+button,.pill,.fab{background:#1a1a26;color:var(--text);border:1px solid #303046;border-radius:8px;padding:8px 12px;cursor:pointer}
+button:hover,.pill:hover{border-color:var(--accent);color:#fff}
+.scene-buttons{display:flex;gap:6px;flex-wrap:wrap}
+.scene-buttons .active{background:var(--accent);border-color:var(--accent)}
+#viewer{width:100%;height:calc(100vh - 160px);min-height:420px}
+footer{padding:10px 16px;background:var(--panel);border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap}
+.scene-name{font-weight:700}
+.status{font-size:12px;color:var(--muted)}
+.fab{position:fixed;right:16px;bottom:16px;z-index:40;display:flex;gap:8px}
+.fab-left{left:16px;right:auto}
+.badge{background:var(--accent-2);border-radius:12px;padding:2px 8px;font-size:12px}
+
+.panel{position:fixed;top:0;bottom:0;width:360px;max-width:92vw;background:var(--panel);
+border:1px solid var(--line);z-index:50;padding:14px;overflow:auto;transition:transform .25s ease}
+.panel-left{left:0;transform:translateX(-100%)}
+.panel-left.open{transform:translateX(0)}
+.panel-right{right:0;transform:translateX(100%)}
+.panel-right.open{transform:translateX(0)}
+
+.products{display:grid;gap:12px}
+.card{display:flex;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#151522}
+.card img{width:76px;height:76px;object-fit:cover;border-radius:8px}
+.price{color:#c0ffc0;font-weight:700}
+.actions{margin-left:auto;display:flex;align-items:center}
+
+.cart-row{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;
+border:1px solid var(--line);border-radius:10px;padding:8px;background:#151522}
+.cart-row img{width:56px;height:56px;border-radius:8px}
+.qty{display:flex;gap:6px;margin-top:6px}
+.qty button{width:26px;height:26px;padding:0}
+.totals{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+.line{display:flex;justify-content:space-between}
+.buy{margin-top:10px;width:100%;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700}
+.empty{text-align:center;color:var(--muted);padding:20px}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three/build/three.module.js",
+    "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core/index.module.js"
+  }
+}
+</script>
+
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+</head>
+<body>
+
+<header>
+  <h1>Explora el mundo</h1>
+  <button id="openStore">🛍️ Abrir tienda</button>
+</header>
+
+<div class="toolbar">
+  <button id="prevBtn">⟵ Anterior</button>
+  <button id="nextBtn">Siguiente ⟶</button>
+  <div class="scene-buttons" id="sceneButtons"></div>
+</div>
+
+<div id="viewer"></div>
+
+<footer>
+  <div class="scene-name" id="sceneName"></div>
+  <div class="status" id="status">Listo</div>
+</footer>
+
+<button class="fab" id="openCart">🛒 <span class="badge" id="cartCount">0</span></button>
+<button class="fab fab-left" id="openStore2">🛍️</button>
+
+<aside class="panel panel-left" id="storePanel">
+  <button id="closeStore">✕</button>
+  <h2>Tienda</h2>
+  <div class="products" id="products"></div>
+</aside>
+
+<aside class="panel panel-right" id="cartPanel">
+  <button id="closeCart">✕</button>
+  <h2>Carrito</h2>
+  <div id="cartBody"></div>
+  <div class="totals" id="totals"></div>
+  <div id="walletBrick_container" style="margin-top:12px;"></div>
+  <button class="buy" id="checkoutBtn">Pagar ahora</button>
+</aside>
+
 <script type="module">
 import { Viewer } from "@photo-sphere-viewer/core";
 
@@ -148,3 +255,7 @@ document.getElementById("openCart").onclick = () => cartPanel.classList.add("ope
 document.getElementById("closeCart").onclick = () => cartPanel.classList.remove("open");
 
 </script>
+
+</body>
+</html>
+
