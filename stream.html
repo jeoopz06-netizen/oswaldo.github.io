@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>La Papu Vista</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { background:#181818; color:#fff; font-family:Arial, Helvetica, sans-serif; margin:0; }
+    header { background:#202020; padding:15px; text-align:center; font-size:1.5em; font-weight:bold; }
+    .container { display:flex; padding:20px; gap:20px; align-items:flex-start; }
+    .player { flex:3; }
+    video { width:100%; border-radius:8px; background:#000; outline:none; }
+    .sidebar { flex:1; display:flex; flex-direction:column; gap:10px; max-height:80vh; overflow:auto; }
+    .video-item { background:#202020; padding:10px; border-radius:6px; cursor:pointer; display:flex; gap:10px; align-items:center; border:1px solid transparent; }
+    .video-item:hover { background:#2a2a2a; border-color:#3a3a3a; }
+    .thumb { width:120px; height:70px; object-fit:cover; border-radius:4px; flex:0 0 auto; background:#111; }
+    .video-item span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .empty { opacity:0.75; font-size:0.95rem; padding:10px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+    .row input { background:#202020; color:#fff; border:1px solid #333; border-radius:6px; padding:6px 10px; }
+    .row button { background:#3b82f6; color:#fff; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; }
+    .row button:hover { background:#2563eb; }
+    footer { text-align:center; opacity:0.6; padding:12px 0 20px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📺 La Papu Vista</h1>
+  </header>
+
+  <div class="container">
+    <div class="player">
+      <div class="row">
+        <input id="searchInput" type="text" placeholder="Buscar (filtra por nombre)..." />
+        <button id="btnReload">🔄 Recargar</button>
+      </div>
+      <video id="videoPlayer" controls preload="metadata" poster="">
+        Tu navegador no soporta video.
+      </video>
+    </div>
+
+    <div class="sidebar" id="videoList">
+      <div class="empty">Cargando lista de videos...</div>
+    </div>
+  </div>
+
+  <footer>Hecho con ❤️ por Jorge — Supabase + GitHub Pages</footer>
+
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script defer>
+    window.addEventListener('DOMContentLoaded', () => {
+      // 🔐 Configura tu proyecto
+      const supabaseUrl = "https://xsmxwjpgjfipxkgocitc.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXh3anBnamZpcHhrZ29jaXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjAwMjUsImV4cCI6MjA4NjgzNjAyNX0.KTWje5RPDXGChabHjeIEYwgygX_z58p0FpBmdA6cWD4"; // <-- tu Anon public key (JWT: xxx.yyy.zzz)
+      const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+      // ⚙️ Ajustes
+      const BUCKET = "videos";          // nombre exacto del bucket
+      const DEFAULT_PREFIX = "";        // si usas subcarpeta: 'pelis/' (termina en '/')
+      const ALLOWED_EXT = ["mp4","webm","ogg","mov","m4v","mkv","avi"];
+
+      // 🔎 Utilidades
+      const isVideo = (name) => ALLOWED_EXT.includes((name.split(".").pop() || "").toLowerCase());
+      const el = (id) => document.getElementById(id);
+
+      const lista = el("videoList");
+      const player = el("videoPlayer");
+      const searchInput = el("searchInput");
+      const btnReload = el("btnReload");
+
+      let allPaths = [];        // rutas completas (para filtrar)
+      const thumbCache = new Map(); // cache de miniaturas por URL pública
+
+      /**
+       * Genera una miniatura (primer frame) de un video público.
+       * Devuelve un DataURL (base64) para usar en <img>.
+       * Usa CORS anónimo y solo 'metadata' para no descargar todo.
+       */
+      async function generateThumbnail(videoUrl, seekSeconds = 1) {
+        // Cache para evitar trabajo repetido
+        if (thumbCache.has(videoUrl)) return thumbCache.get(videoUrl);
+
+        return new Promise((resolve) => {
+          const v = document.createElement('video');
+          v.crossOrigin = "anonymous";         // importante para canvas
+          v.preload = "metadata";              // no descargar todo el video
+          v.muted = true;                      // algunos navegadores lo requieren al manipular
+          v.src = videoUrl + (videoUrl.includes('?') ? '&' : '?') + 't=' + Date.now(); // cache-bust para thumbs
+
+          const cleanup = () => {
+            v.src = "";
+            v.removeAttribute('src');
+            v.load();
+          };
+
+          const onError = () => {
+            console.warn("No se pudo generar thumbnail de:", videoUrl);
+            cleanup();
+            resolve(null);
+          };
+
+          v.addEventListener('error', onError);
+
+          v.addEventListener('loadedmetadata', () => {
+            if (isNaN(v.duration) || v.duration === Infinity) {
+              // A veces metadata no trae duration; intentamos igual en 0s
+            }
+            // Asegura un tiempo válido dentro de la duración
+            const t = Math.min(Math.max(0.1, seekSeconds), (v.duration && isFinite(v.duration)) ? v.duration - 0.1 : seekSeconds);
+            const seekTo = isFinite(t) ? t : 0.1;
+
+            const onSeeked = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                // Mantén proporción; si no hay videoWidth aún, fallback 160x90
+                const w = v.videoWidth || 160;
+                const h = v.videoHeight || 90;
+                canvas.width = w;
+                canvas.height = h;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(v, 0, 0, w, h);
+                const dataURL = canvas.toDataURL('image/jpeg', 0.75);
+
+                cleanup();
+                thumbCache.set(videoUrl, dataURL);
+                resolve(dataURL);
+              } catch (e) {
+                console.warn("Error al pintar thumbnail:", e);
+                cleanup();
+                resolve(null);
+              }
+            };
+
+            v.currentTime = seekTo;
+            v.addEventListener('seeked', onSeeked, { once: true });
+          }, { once: true });
+        });
+      }
+
+      // 🚀 Cargar lista de videos (solo nivel actual por DEFAULT_PREFIX)
+      async function cargarListaVideos(prefix = DEFAULT_PREFIX) {
+        try {
+          console.log("Listando bucket:", BUCKET, "con prefix:", prefix || "(raíz)");
+          const { data, error } = await sb.storage.from(BUCKET).list(prefix, {
+            limit: 1000,
+            sortBy: { column: "name", order: "asc" }
+          });
+
+          if (error) {
+            console.error("Error al listar videos:", error);
+            lista.innerHTML = '<div class="empty">Error al listar. Revisa la policy SELECT en storage.objects.</div>';
+            return;
+          }
+
+          console.log("Respuesta de list():", data);
+
+          // Filtra solo archivos que parezcan vídeo y arma rutas completas
+          const archivos = (data || [])
+            .filter(item => item?.name && isVideo(item.name))
+            .map(item => prefix ? `${prefix.replace(/\/?$/, "/")}${item.name}` : item.name);
+
+          allPaths = archivos;
+          renderLista(archivos);
+
+          if (archivos.length > 0) {
+            // Configura poster del primer video mientras se reproduce
+            const firstPath = archivos[0];
+            const firstUrl = sb.storage.from(BUCKET).getPublicUrl(firstPath).data.publicUrl;
+
+            // Genera miniatura y la pone como poster
+            generateThumbnail(firstUrl).then(poster => {
+              if (poster) player.setAttribute('poster', poster);
+            });
+
+            cambiarVideo(firstPath);
+          } else {
+            player.removeAttribute("src");
+            player.removeAttribute("poster");
+            player.load();
+          }
+        } catch (e) {
+          console.error("Excepción al cargar lista:", e);
+          lista.innerHTML = '<div class="empty">Error inesperado al listar.</div>';
+        }
+      }
+
+      // 🧭 Render de la lista lateral (con miniaturas reales)
+      function renderLista(paths) {
+        lista.innerHTML = "";
+        if (!paths || paths.length === 0) {
+          lista.innerHTML = '<div class="empty">No se encontraron videos en este bucket/prefix.</div>';
+          return;
+        }
+
+        paths.forEach(p => {
+          const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(p);
+          const publicUrl = pub.publicUrl;
+
+          const label = p.split("/").pop() || p;
+
+          const item = document.createElement("div");
+          item.className = "video-item";
+
+          // Estructura inicial con un placeholder (se reemplaza al cargar la miniatura)
+          item.innerHTML = `
+            <img class="thumb" alt="thumb" src="data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'70\'><rect width=\'100%\' height=\'100%\' fill=\'#111\'/><text x=\'50%\' y=\'50%\' font-size=\'12\' fill=\'#aaa\' dominant-baseline=\'middle\' text-anchor=\'middle\'>Cargando...</text></svg>')}" />
+            <span title="${p}">${label}</span>
+          `;
+
+          // Click para cambiar el video
+          item.onclick = () => {
+            // Poner poster al reproductor de inmediato si ya está en cache
+            const cached = thumbCache.get(publicUrl);
+            if (cached) player.setAttribute('poster', cached);
+            cambiarVideo(p);
+          };
+
+          // Generar la miniatura real
+          generateThumbnail(publicUrl).then(dataUrl => {
+            if (dataUrl) {
+              const img = item.querySelector('.thumb');
+              if (img) img.src = dataUrl;
+            }
+          });
+
+          lista.appendChild(item);
+        });
+      }
+
+      // ▶️ Cambiar video (y actualizar poster si está en cache)
+      function cambiarVideo(filePath) {
+        const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(filePath);
+        const url = pub.publicUrl;
+
+        // Si ya hay thumbnail cacheado, úsalo como poster
+        const cached = thumbCache.get(url);
+        if (cached) player.setAttribute('poster', cached);
+
+        player.pause();
+        player.src = url;
+        player.load(); // no forzamos autoplay
+        console.log("▶️ Reproduciendo:", filePath, "→", url);
+      }
+
+      // 🔍 Búsqueda por nombre (filtro local)
+      searchInput.addEventListener("input", () => {
+        const q = searchInput.value.trim().toLowerCase();
+        if (!q) {
+          renderLista(allPaths);
+          return;
+        }
+        const filtered = allPaths.filter(p => p.toLowerCase().includes(q));
+        renderLista(filtered);
+      });
+
+      // 🔄 Recargar manualmente
+      btnReload.addEventListener("click", () => {
+        searchInput.value = "";
+        cargarListaVideos();
+      });
+
+      // ⏯️ Iniciar
+      cargarListaVideos();
+    });
+  </script>
+</body>
+</html>
