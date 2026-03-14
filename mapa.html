@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+  
+<head>
+  <meta charset="UTF-8" />
+  <title>Social Media Cards</title>
+
+  <!-- Estilos de Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <!-- Estilos del geocoder -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+
+</head>
+<body>
+  <header>
+    <h1>Pruebas api🛒</h1>
+  </header>
+
+  <div class="page">
+    <!-- Columna izquierda: Pago (arriba) + 2FA (abajo) -->
+    <div class="left-column">
+      <!-- Caja de pago (superior izquierda) -->
+      <section class="card" aria-label="Pago">
+        <h2>Carrito y pago</h2>
+
+        <div id="productos">
+          <label>
+            <span>Comida premium para perro (1kg) — <b>$149.00</b></span>
+            <input type="number" min="0" max="5" value="0" data-id="p1" data-precio="14900">
+          </label>
+          <label>
+            <span>Shampoo hipoalergénico — <b>$89.00</b></span>
+            <input type="number" min="0" max="5" value="0" data-id="p2" data-precio="8900">
+          </label>
+          <label>
+            <span>Juguete mordedera — <b>$59.00</b></span>
+            <input type="number" min="0" max="5" value="0" data-id="p3" data-precio="5900">
+          </label>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <div id="resumenCarrito">0 artículos</div>
+          <div id="totalCarrito" style="font-weight:bold;">Total: $0.00 MXN</div>
+        </div>
+
+        <button id="btnPagarStripe">💳 Pagar con Stripe</button>
+        <div id="payStatus" style="margin-top:6px;"></div>
+      </section>
+
+      <!-- Caja 2FA (inferior izquierda) -->
+      <section class="card" aria-label="2FA">
+        <h2>🔐 Verificación en 2 pasos (TOTP)</h2>
+        <div id="twoFA">
+          <button id="btnSetup2FA" class="btn">1) Generar QR</button>
+          <div id="qrBox" style="margin-top:8px;"></div>
+
+          <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+            <input id="token2FA" type="text" placeholder="Código 6 dígitos" style="width:160px;">
+            <button id="btnVerify2FA" class="btn">2) Verificar y activar</button>
+          </div>
+
+          <div id="twoFAStatus" style="margin-top:6px;"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Columna derecha: Mapa -->
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div id="map" aria-label="Mapa"></div>
+    </div>
+  </div>
+
+  <!-- Barra social fija -->
+  <div class="social-bar">
+    <a id="youtube-link" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg" alt="YouTube" class="logo">
+    </a>
+    <a id="facebook-link" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" alt="Facebook" class="logo">
+    </a>
+    <a id="github-link" target="_blank">
+      <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" class="logo">
+    </a>
+  </div>
+
+  <!-- Botón para mostrar/ocultar chat -->
+  <button id="toggle-chat">💬 Abrir Chat</button>
+
+  <!-- Contenedor del chat -->
+  <div id="chat-container" class="hidden" aria-live="polite">
+    <h2 style="margin:0 0 8px;">Chat con Hugging Face API</h2>
+    <div id="chat"></div>
+    <div style="display:flex; gap:8px;">
+      <input id="input" type="text" placeholder="Escribe tu mensaje...">
+      <button id="btn" class="btn">Enviar</button>
+    </div>
+  </div>
+
+  <!-- Leaflet y geocoder -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+  <script>
+  // 🔴 GitHub API
+  const USERNAME = "jeoopz06-netizen";
+  fetch(`https://api.github.com/users/${USERNAME}/repos`)
+    .then(res => res.json())
+    .then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        document.getElementById("github-link").href = data[0].html_url;
+      }
+    })
+    .catch(() => {});
+
+  // ▶️ YouTube
+  const CHANNEL_ID = "UCzHobN51uHVjK43EPi12sBA";
+  document.getElementById("youtube-link").href = `https://www.youtube.com/channel/${CHANNEL_ID}`;
+
+  // 📌 Facebook (no seguro en producción usar token público)
+  const TOKEN = "EAARj7iNDa0IBQmZAFSxClbjMjFhyBcTmjVHgXjVUihYAXayfNbvOl0xkfroj4oHdYxjCWt1ww4LWe9H3ZC8QE9RBsyZCLwTTRDI47zUbBFlRKd4haYigDnrkdcPZAvJtPfIoztSZBfNQn2hDpsNv5eqqBOMYobQftU2DHpQQUPt3ikCivS4FZCeJ8m5lctZCVHS";
+  fetch(`https://graph.facebook.com/v19.0/me?fields=id&access_token=${TOKEN}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data?.id) {
+        document.getElementById("facebook-link").href = `https://facebook.com/${data.id}`;
+      }
+    })
+    .catch(() => {});
+
+  // 🗺️ Crear el mapa
+  var map = L.map('map').setView([19.4326, -99.1332], 13);
+
+  // Tiles OSM
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Geocoder
+  L.Control.geocoder({ defaultMarkGeocode: true }).addTo(map);
+
+  // Geolocalización
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        var lat = position.coords.latitude;
+        var lon = position.coords.longitude;
+        map.setView([lat, lon], 15);
+        L.marker([lat, lon]).addTo(map)
+          .bindPopup("¡Estás aquí! 📍").openPopup();
+      },
+      function(error) {
+        console.error("Error obteniendo ubicación:", error);
+        alert("No se pudo obtener tu ubicación.");
+      }
+    );
+  } else {
+    alert("La geolocalización no está soportada en este navegador.");
+  }
+
+  // 🤖 Chat (Hugging Face)
+  async function sendMessage() {
+    const input = document.getElementById("input");
+    const chat = document.getElementById("chat");
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+    chat.innerHTML += `<p><b>Tú:</b> ${userMessage}</p>`;
+    input.value = "";
+
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inputs: `Eres un chef experto. ${userMessage}` }),
+      });
+
+      const result = await response.json();
+
+      if (response.status === 503 && result.loading) {
+        chat.innerHTML += `<p><i>IA está cargando el modelo… (~${result.estimated_time ?? 10}s)</i></p>`;
+        await new Promise(r => setTimeout(r, ((result.estimated_time ?? 10) + 1) * 1000));
+        return sendMessageRetry(`Eres un chef experto. ${userMessage}`);
+      }
+
+      if (Array.isArray(result) && result[0]?.generated_text) {
+        chat.innerHTML += `<p><b>IA:</b> ${result[0].generated_text}</p>`;
+      } else if (result.error) {
+        chat.innerHTML += `<p><b>IA:</b> Error: ${result.error}</p>`;
+      } else {
+        chat.innerHTML += `<p><b>IA:</b> (No se pudo generar respuesta)</p>`;
+      }
+    } catch (e) {
+      chat.innerHTML += `<p><b>IA:</b> Error de red o CORS. Revisa la consola.</p>`;
+      console.error(e);
+    }
+  }
+
+  async function sendMessageRetry(prompt) {
+    const chat = document.getElementById("chat");
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inputs: prompt }),
+      });
+      const result = await response.json();
+
+      if (Array.isArray(result) && result[0]?.generated_text) {
+        chat.innerHTML += `<p><b>IA:</b> ${result[0].generated_text}</p>`;
+      } else {
+        chat.innerHTML += `<p><b>IA:</b> (No se pudo generar respuesta tras reintento)</p>`;
+      }
+    } catch (e) {
+      chat.innerHTML += `<p><b>IA:</b> Error al reintentar.</p>`;
+      console.error(e);
+    }
+  }
+
+  document.getElementById("btn").addEventListener("click", sendMessage);
+  document.getElementById("input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
+
+  // Mostrar/ocultar chat
+  const chatContainer = document.getElementById("chat-container");
+  const toggleChatBtn = document.getElementById("toggle-chat");
+  toggleChatBtn.addEventListener("click", () => {
+    const hidden = chatContainer.classList.toggle("hidden");
+    toggleChatBtn.textContent = hidden ? "💬 Abrir Chat" : "✖️ Cerrar Chat";
+  });
+
+  // --- Precios iniciales
+  const catalogo = {
+    p1: { nombre: "Comida premium para perro (1kg)", precio: 14900 }, // centavos
+    p2: { nombre: "Shampoo hipoalergénico",            precio:  8900 },
+    p3: { nombre: "Juguete mordedera",                  precio:  5900 },
+  };
+
+  const inputsCantidad = Array.from(document.querySelectorAll('#productos input[type="number"]'));
+  const lblResumen  = document.getElementById('resumenCarrito');
+  const lblTotal    = document.getElementById('totalCarrito');
+  const btnPagarStripe = document.getElementById('btnPagarStripe');
+  const payStatus   = document.getElementById('payStatus');
+
+  function formateaMXN(centavos) {
+    return `$${(centavos / 100).toFixed(2)} MXN`;
+  }
+
+  function calculaCarrito() {
+    let totalCentavos = 0;
+    let totalItems = 0;
+
+    inputsCantidad.forEach(inp => {
+      const cant = Math.max(0, Math.min(5, parseInt(inp.value || "0", 10)));
+      const precio = parseInt(inp.dataset.precio, 10); // centavos
+      totalCentavos += cant * precio;
+      totalItems += cant;
+    });
+
+    lblResumen.textContent = `${totalItems} artículo${totalItems !== 1 ? 's' : ''}`;
+    lblTotal.textContent   = `Total: ${formateaMXN(totalCentavos)}`;
+
+    return { totalCentavos, totalItems };
+  }
+
+  // Recalcular cuando cambie cualquier cantidad
+  inputsCantidad.forEach(inp => {
+    inp.addEventListener('change', calculaCarrito);
+    inp.addEventListener('input', calculaCarrito);
+  });
+  // Calcular al cargar
+  calculaCarrito();
+
+  // 💳 Pagar con Stripe usando el total seleccionado
+  async function pagarConStripe() {
+    const { totalCentavos, totalItems } = calculaCarrito();
+
+    if (totalItems === 0 || totalCentavos <= 0) {
+      payStatus.textContent = "Selecciona al menos 1 artículo para pagar.";
+      return;
+    }
+
+    btnPagarStripe.disabled = true;
+    payStatus.textContent = "Creando sesión de pago…";
+
+    const resumenNombre = `Carrito (${totalItems} artículo${totalItems !== 1 ? 's' : ''})`;
+
+    try {
+      const resp = await fetch("/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: resumenNombre,
+          amount: totalCentavos, // total en centavos
+          currency: "mxn",
+          quantity: 1            // 1 porque amount ya es total agregado
+        })
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        throw new Error(data?.error || `HTTP ${resp.status}`);
+      }
+
+      if (data?.url) {
+        payStatus.textContent = "Redirigiendo a Stripe Checkout…";
+        window.location.href = data.url;
+      } else {
+        throw new Error("No se recibió la URL de Checkout.");
+      }
+    } catch (err) {
+      console.error("[Stripe] Error creando sesión:", err);
+      payStatus.textContent = "Error creando sesión de pago. Revisa la consola.";
+      btnPagarStripe.disabled = false;
+    }
+  }
+  btnPagarStripe.addEventListener("click", pagarConStripe);
+
+  // 2FA
+  const btnSetup2FA  = document.getElementById("btnSetup2FA");
+  const btnVerify2FA = document.getElementById("btnVerify2FA");
+  const token2FA     = document.getElementById("token2FA");
+  const qrBox        = document.getElementById("qrBox");
+  const twoFAStatus  = document.getElementById("twoFAStatus");
+
+  // 1) Pedir QR
+  btnSetup2FA.addEventListener("click", async () => {
+    twoFAStatus.textContent = "Generando QR...";
+    qrBox.innerHTML = "";
+    try {
+      const r = await fetch("/2fa/setup");
+      const data = await r.json();
+      if (data.qrDataUrl) {
+        const img = document.createElement("img");
+        img.src = data.qrDataUrl;
+        img.alt = "Escanea en Google Authenticator";
+        img.style = "width:180px;height:auto;border:1px solid #555;border-radius:8px;background:#fff;padding:8px;";
+        qrBox.appendChild(img);
+        twoFAStatus.textContent = "Escanea el QR con Google Authenticator y escribe el código.";
+      } else {
+        twoFAStatus.textContent = "No se pudo generar el QR.";
+      }
+    } catch (e) {
+      console.error(e);
+      twoFAStatus.textContent = "Error de red generando el QR.";
+    }
+  });
+
+  // 2) Verificar código y activar
+  btnVerify2FA.addEventListener("click", async () => {
+    const token = token2FA.value.trim();
+    if (!token) {
+      twoFAStatus.textContent = "Ingresa el código de 6 dígitos.";
+      return;
+    }
+    twoFAStatus.textContent = "Verificando...";
+    try {
+      const r = await fetch("/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      });
+      const data = await r.json();
+      if (r.ok && data.ok) {
+        twoFAStatus.textContent = "✅ 2FA activado correctamente.";
+      } else {
+        twoFAStatus.textContent = "❌ Código inválido.";
+      }
+    } catch (e) {
+      console.error(e);
+      twoFAStatus.textContent = "Error de red al verificar.";
+    }
+  });
+  </script>
+  <style>
+    :root{
+      --gap: 12px;
+      --sidebar-width: 380px;
+      --social-height: 60px;
+      --card-bg: rgba(34,34,34,0.85);
+      --text: bisque;
+      --accent: #ffd280;
+    }
+
+    *{ box-sizing: border-box; }
+
+    body{
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-image: url(https://wallpapers.com/images/hd/death-star-background-5oh85y2eyc8x3em4.jpg);
+      background-size: cover;
+      background-attachment: fixed;
+      color: var(--text);
+      /* espacio para que la barra social fija no tape el contenido */
+      padding-bottom: var(--social-height);
+    }
+
+    header{
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1{ margin: 0; color: var(--text); }
+    h3{ color: var(--text); margin: 12px 0 8px; }
+
+    /* Layout principal: columna izquierda fija + mapa a la derecha */
+    .page{
+      display: grid;
+      grid-template-columns: minmax(300px, var(--sidebar-width)) 1fr;
+      gap: var(--gap);
+      align-items: start;
+      padding: 0 var(--gap) var(--gap);
+    }
+
+    /* Columna izquierda con dos tarjetas: Pago (arriba) y 2FA (abajo) */
+    .left-column{
+      position: sticky;
+      top: var(--gap);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: var(--gap);
+      height: calc(100vh - 100px); /* deja respirar la cabecera */
+      min-height: 560px;
+    }
+
+    .card{
+      background: var(--card-bg);
+      backdrop-filter: blur(2px);
+      border: 1px solid #555;
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .card h2{ margin: 0 0 8px; color: var(--text); }
+
+    /* Productos */
+    #productos{
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #productos label{
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px;
+    }
+    #productos input[type="number"]{
+      width: 64px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid #666;
+      background: #111; color: #fff;
+    }
+
+    /* Botón pagar */
+    #btnPagarStripe{
+      margin-top:10px;
+      background:#635bff; color:white;
+      padding:10px; border:none; border-radius:6px;
+      cursor:pointer; width:100%;
+    }
+    #btnPagarStripe:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+    /* Mapa a la derecha, que no tape la barra social */
+    #map{
+      height: calc(100vh - 160px);
+      min-height: 350px;
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #555;
+      overflow: hidden;
+    }
+
+    /* Barra inferior de redes sociales */
+    .social-bar{
+      position: fixed;
+      z-index: 1000;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: var(--social-height);
+      background: #222;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      padding: 10px 0;
+      border-top: 1px solid #444;
+    }
+    .social-bar a{ text-decoration: none; }
+    .logo{
+      width: 40px; height: 40px;
+      filter: brightness(0) invert(1);
+      transition: transform 0.2s;
+    }
+    .logo:hover{ transform: scale(1.2); }
+
+    /* Chat inferior derecho */
+    #toggle-chat{
+      position: fixed;
+      z-index: 1200;
+      bottom: calc(var(--social-height) + 10px);
+      right: 20px;
+      background: #444; color: var(--text);
+      border: none; padding: 10px 14px; border-radius: 20px;
+      cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    #chat-container{
+      position: fixed;
+      z-index: 1100;
+      bottom: calc(var(--social-height) + 60px);
+      right: 20px;
+      width: 320px; max-height: 460px;
+      background: rgba(34,34,34, 0.95);
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text);
+      display: flex; flex-direction: column;
+      border: 1px solid #555;
+      box-shadow: 0 5px 16px rgba(0,0,0,0.5);
+    }
+    #chat{ flex:1; overflow-y:auto; max-height: 300px; margin-bottom: 10px; }
+    #chat input, #chat-container input{
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #666;
+      background: #111; color: #fff;
+    }
+    #chat-container.hidden{ display: none; }
+
+    /* Inputs y botones pequeños */
+    .btn{
+      padding: 6px 10px; border-radius: 6px; cursor: pointer;
+      background: #444; color: var(--text); border: 1px solid #666;
+    }
+
+    /* Mensajes/estados */
+    #resumenCarrito, #totalCarrito, #payStatus, #twoFAStatus{
+      font-size: 14px; color: var(--accent);
+    }
+
+    /* Responsivo */
+    @media (max-width: 980px){
+      .page{
+        grid-template-columns: 1fr;
+      }
+      .left-column{
+        position: relative;
+        top: 0;
+        height: auto;
+      }
+      #map{
+        height: 50vh;
+      }
+    }
+  </style>
+</body>
+</html>
