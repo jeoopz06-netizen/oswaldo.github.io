@@ -100,10 +100,10 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-  <script>
-    const RENDER_API_URL = "https://oswaldo-github-io-1.onrender.com";
-const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
-  // 🔴 GitHub API
+<script>
+  const API_BASE = "https://oswaldo-github-io-1.onrender.com"; // backend Render
+
+  // 🔴 GitHub API (ok público)
   const USERNAME = "jeoopz06-netizen";
   fetch(`https://api.github.com/users/${USERNAME}/repos`)
     .then(res => res.json())
@@ -114,41 +114,25 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     })
     .catch(() => {});
 
-  // ▶️ YouTube
+  // ▶️ YouTube (ok público)
   const CHANNEL_ID = "UCzHobN51uHVjK43EPi12sBA";
   document.getElementById("youtube-link").href = `https://www.youtube.com/channel/${CHANNEL_ID}`;
 
-  // 📌 Facebook (no seguro en producción usar token público)
-  const TOKEN = "EAARj7iNDa0IBQmZAFSxClbjMjFhyBcTmjVHgXjVUihYAXayfNbvOl0xkfroj4oHdYxjCWt1ww4LWe9H3ZC8QE9RBsyZCLwTTRDI47zUbBFlRKd4haYigDnrkdcPZAvJtPfIoztSZBfNQn2hDpsNv5eqqBOMYobQftU2DHpQQUPt3ikCivS4FZCeJ8m5lctZCVHS";
-  fetch(`https://graph.facebook.com/v19.0/me?fields=id&access_token=${TOKEN}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data?.id) {
-        document.getElementById("facebook-link").href = `https://facebook.com/${data.id}`;
-      }
-    })
-    .catch(() => {});
+  // 📌 Facebook — RECOMENDADO: mover a backend (NO expongas el token en el front)
+  // fetch(`${API_BASE}/social/facebook-id`).then(...)
 
-  // 🗺️ Crear el mapa
+  // 🗺️ Leaflet+Geocoder (solo front, sin cambios)
   var map = L.map('map').setView([19.4326, -99.1332], 13);
-
-  // Tiles OSM
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
-
-  // Geocoder
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
   L.Control.geocoder({ defaultMarkGeocode: true }).addTo(map);
 
-  // Geolocalización
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       function(position) {
         var lat = position.coords.latitude;
         var lon = position.coords.longitude;
         map.setView([lat, lon], 15);
-        L.marker([lat, lon]).addTo(map)
-          .bindPopup("¡Estás aquí! 📍").openPopup();
+        L.marker([lat, lon]).addTo(map).bindPopup("¡Estás aquí! 📍").openPopup();
       },
       function(error) {
         console.error("Error obteniendo ubicación:", error);
@@ -169,7 +153,7 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     input.value = "";
 
     try {
-      const response = await fetch("/chat", {
+      const response = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inputs: `Eres un chef experto. ${userMessage}` }),
@@ -199,7 +183,7 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
   async function sendMessageRetry(prompt) {
     const chat = document.getElementById("chat");
     try {
-      const response = await fetch("/chat", {
+      const response = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inputs: prompt }),
@@ -230,13 +214,7 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     toggleChatBtn.textContent = hidden ? "💬 Abrir Chat" : "✖️ Cerrar Chat";
   });
 
-  // --- Precios iniciales
-  const catalogo = {
-    p1: { nombre: "Comida premium para perro (1kg)", precio: 14900 }, // centavos
-    p2: { nombre: "Shampoo hipoalergénico",            precio:  8900 },
-    p3: { nombre: "Juguete mordedera",                  precio:  5900 },
-  };
-
+  // --- Carrito/Stripe
   const inputsCantidad = Array.from(document.querySelectorAll('#productos input[type="number"]'));
   const lblResumen  = document.getElementById('resumenCarrito');
   const lblTotal    = document.getElementById('totalCarrito');
@@ -253,7 +231,7 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
 
     inputsCantidad.forEach(inp => {
       const cant = Math.max(0, Math.min(5, parseInt(inp.value || "0", 10)));
-      const precio = parseInt(inp.dataset.precio, 10); // centavos
+      const precio = parseInt(inp.dataset.precio, 10);
       totalCentavos += cant * precio;
       totalItems += cant;
     });
@@ -264,15 +242,12 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     return { totalCentavos, totalItems };
   }
 
-  // Recalcular cuando cambie cualquier cantidad
   inputsCantidad.forEach(inp => {
     inp.addEventListener('change', calculaCarrito);
     inp.addEventListener('input', calculaCarrito);
   });
-  // Calcular al cargar
   calculaCarrito();
 
-  // 💳 Pagar con Stripe usando el total seleccionado
   async function pagarConStripe() {
     const { totalCentavos, totalItems } = calculaCarrito();
 
@@ -287,14 +262,14 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     const resumenNombre = `Carrito (${totalItems} artículo${totalItems !== 1 ? 's' : ''})`;
 
     try {
-      const resp = await fetch("/create-checkout-session", {
+      const resp = await fetch(`${API_BASE}/create-checkout-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: resumenNombre,
-          amount: totalCentavos, // total en centavos
+          amount: totalCentavos,
           currency: "mxn",
-          quantity: 1            // 1 porque amount ya es total agregado
+          quantity: 1
         })
       });
 
@@ -325,12 +300,11 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
   const qrBox        = document.getElementById("qrBox");
   const twoFAStatus  = document.getElementById("twoFAStatus");
 
-  // 1) Pedir QR
   btnSetup2FA.addEventListener("click", async () => {
     twoFAStatus.textContent = "Generando QR...";
     qrBox.innerHTML = "";
     try {
-      const r = await fetch("/2fa/setup");
+      const r = await fetch(`${API_BASE}/2fa/setup`);
       const data = await r.json();
       if (data.qrDataUrl) {
         const img = document.createElement("img");
@@ -348,7 +322,6 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     }
   });
 
-  // 2) Verificar código y activar
   btnVerify2FA.addEventListener("click", async () => {
     const token = token2FA.value.trim();
     if (!token) {
@@ -357,7 +330,7 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
     }
     twoFAStatus.textContent = "Verificando...";
     try {
-      const r = await fetch("/2fa/verify", {
+      const r = await fetch(`${API_BASE}/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token })
@@ -373,7 +346,8 @@ const MP_PUBLIC_KEY = "TEST-4bbbd92f-1ea7-4b95-85a9-9e3fa6a3555c";
       twoFAStatus.textContent = "Error de red al verificar.";
     }
   });
-  </script>
+</script>
+``
   <style>
     :root{
       --gap: 12px;
