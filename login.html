@@ -76,37 +76,109 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script>
-    /* ==== SUPABASE ==== */
-    const SUPABASE_URL = "https://xsmxwjpgjfipxkgocitc.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXh3anBnamZpcHhrZ29jaXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjAwMjUsImV4cCI6MjA4NjgzNjAyNX0.KTWje5RPDXGChabHjeIEYwgygX_z58p0FpBmdA6cWD4";
+<script>
+const SUPABASE_URL = "https://xsmxwjpgjfipxkgocitc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXh3anBnamZpcHhrZ29jaXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjAwMjUsImV4cCI6MjA4NjgzNjAyNX0.KTWje5RPDXGChabHjeIEYwgygX_z58p0FpBmdA6cWD4";
 
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const emailInput = document.getElementById("email");
-    const passInput = document.getElementById("password");
-    const msg = document.getElementById("msg");
+const emailInput = document.getElementById("email");
+const passInput = document.getElementById("password");
+const msg = document.getElementById("msg");
 
-    document.getElementById("loginBtn").onclick = async () => {
-      msg.textContent = "Iniciando sesión...";
+/* Elementos que agregaremos debajo del login */
+const mfaBox = document.createElement("div");
+mfaBox.style.display = "none";
+mfaBox.innerHTML = `
+  <h3>Verificación en dos pasos</h3>
+  <img id="qrImg" style="max-width:180px; display:none; margin:10px auto;" />
+  <input id="totpCode" placeholder="Código de Google Authenticator" />
+  <button id="verifyBtn">Verificar</button>
+`;
+document.querySelector(".login-box").appendChild(mfaBox);
 
-      const { error } = await sb.auth.signInWithPassword({
-        email: emailInput.value.trim(),
-        password: passInput.value
-      });
+const qrImg = document.getElementById("qrImg");
+const totpInput = document.getElementById("totpCode");
+const verifyBtn = document.getElementById("verifyBtn");
 
-      if (error) {
-        msg.textContent = error.message;
-        msg.style.color = "#f87171";
-      } else {
-        msg.textContent = "Acceso correcto ✅";
-        msg.style.color = "#22c55e";
+let currentFactorId = null;
 
-        // Ir al dashboard
-        window.location.href = "trabajofinal.html";
-      }
-    };
-  </script>
+/* ========= LOGIN ========= */
+document.getElementById("loginBtn").onclick = async () => {
+  msg.textContent = "Iniciando sesión…";
+
+  const { error } = await sb.auth.signInWithPassword({
+    email: emailInput.value.trim(),
+    password: passInput.value
+  });
+
+  if (error) {
+    msg.textContent = error.message;
+    msg.style.color = "#f87171";
+    return;
+  }
+
+  // Ver si el usuario ya tiene 2FA
+  const { data: factors } = await sb.auth.mfa.listFactors();
+  const totpFactors = factors?.totp || [];
+
+  if (totpFactors.length > 0) {
+    // Ya tiene 2FA → pedir código
+    currentFactorId = totpFactors[0].id;
+    mfaBox.style.display = "block";
+    qrImg.style.display = "none";
+    msg.textContent = "Ingresa el código de Google Authenticator";
+  } else {
+    // NO tiene 2FA → crear QR
+    const { data, error: enrollError } = await sb.auth.mfa.enroll({
+      factorType: "totp"
+    });
+
+    if (enrollError) {
+      msg.textContent = enrollError.message;
+      return;
+    }
+
+    currentFactorId = data.id;
+    qrImg.src = data.totp.qr_code;
+    qrImg.style.display = "block";
+    mfaBox.style.display = "block";
+    msg.textContent = "Escanea el QR y escribe el código";
+  }
+};
+
+/* ========= VERIFICAR CÓDIGO ========= */
+verifyBtn.onclick = async () => {
+  const code = totpInput.value.trim();
+  if (!code || !currentFactorId) return;
+
+  // Crear reto
+  const { data: challenge, error: chError } =
+    await sb.auth.mfa.challenge({ factorId: currentFactorId });
+
+  if (chError) {
+    msg.textContent = chError.message;
+    return;
+  }
+
+  // Verificar código
+  const { error: verifyError } =
+    await sb.auth.mfa.verify({
+      factorId: currentFactorId,
+      challengeId: challenge.id,
+      code: code
+    });
+
+  if (verifyError) {
+    msg.textContent = "Código incorrecto";
+    return;
+  }
+
+  // ✅ Listo
+  msg.textContent = "Verificación correcta ✅";
+  window.location.href = "index.html";
+};
+</script>
 
 </body>
 </html>
