@@ -332,12 +332,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-/* ================== CONFIGURACIÓN SUPABASE ================== */
+/* ================== CONFIGURACIÓN ================== */
 const SUPABASE_URL = "https://xsmxwjpgjfipxkgocitc.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXh3anBnamZpcHhrZ29jaXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjAwMjUsImV4cCI6MjA4NjgzNjAyNX0.KTWje5RPDXGChabHjeIEYwgygX_z58p0FpBmdA6cWD4";
+const SUPABASE_KEY = "PEGA_AQUI_TU_ANON_PUBLIC_KEY";
 const BUCKET = "pdfVideo";
 
-/* ✅ Cliente Supabase (NUNCA llames esta variable 'supabase') */
+/* ✅ Cliente Supabase (NO usar 'supabase' como nombre) */
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ================== REFERENCIAS DOM ================== */
@@ -354,16 +354,13 @@ const muteBtn = document.getElementById("muteBtn");
 const speedBtn = document.getElementById("speedBtn");
 const videoAnchor = document.getElementById("videoAnchor");
 
-/* ================== UTILIDAD URL PÚBLICA ================== */
+/* ================== URL PÚBLICA ================== */
 function publicUrl(path) {
-  return sb.storage
-    .from(BUCKET)
-    .getPublicUrl(path)
-    .data.publicUrl;
+  return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 /* ================== POSTER (PRIMER FRAME) ================== */
-async function generatePoster(videoUrl) {
+async function generarPoster(videoUrl) {
   return new Promise((resolve) => {
     const v = document.createElement("video");
     v.src = videoUrl;
@@ -377,11 +374,11 @@ async function generatePoster(videoUrl) {
 
     v.addEventListener("seeked", () => {
       try {
-        const canvas = document.createElement("canvas");
-        canvas.width = v.videoWidth || 640;
-        canvas.height = v.videoHeight || 360;
-        canvas.getContext("2d").drawImage(v, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
+        const c = document.createElement("canvas");
+        c.width = v.videoWidth || 640;
+        c.height = v.videoHeight || 360;
+        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.85));
       } catch {
         resolve("");
       }
@@ -391,46 +388,30 @@ async function generatePoster(videoUrl) {
   });
 }
 
-/* ================== CARGAR ARCHIVOS DEL BUCKET ================== */
+/* ================== CARGAR DESDE MANIFEST ================== */
 async function cargarArchivos() {
-  const { data, error } = await sb
-    .storage
-    .from(BUCKET)
-    .list("", { limit: 1000 });
-
-  if (error) {
-    console.error("❌ Error listando bucket:", error);
-    return;
-  }
-
-  /* Agrupar: tema.pdf + tema.mp4 */
-  const grupos = {};
-  data.forEach(file => {
-    const base = file.name.replace(/\.(pdf|mp4)$/i, "");
-    if (!grupos[base]) grupos[base] = {};
-    if (file.name.endsWith(".pdf")) grupos[base].pdf = file.name;
-    if (file.name.endsWith(".mp4")) grupos[base].video = file.name;
-  });
+  const res = await fetch("manifest.json");
+  const lista = await res.json();
 
   menu.innerHTML = "";
 
-  Object.entries(grupos).forEach(([nombre, archivos]) => {
-    if (!archivos.pdf || !archivos.video) return;
+  lista.forEach(nombre => {
+    const pdf = `${nombre}.pdf`;
+    const vid = `${nombre}.mp4`;
 
     const li = document.createElement("li");
     li.innerHTML = `<span class="bullet"></span> ${nombre}`;
 
-    li.onclick = () => loadContent(archivos.pdf, archivos.video, li);
+    li.onclick = () => cargarContenido(pdf, vid, li);
     menu.appendChild(li);
   });
 
-  /* Cargar el primero automáticamente */
   const first = menu.querySelector("li");
   if (first) first.click();
 }
 
 /* ================== CARGAR PDF + VIDEO ================== */
-async function loadContent(pdfFile, videoFile, li) {
+async function cargarContenido(pdfFile, videoFile, li) {
   [...menu.children].forEach(x => x.classList.remove("active"));
   li.classList.add("active");
 
@@ -446,7 +427,7 @@ async function loadContent(pdfFile, videoFile, li) {
   video.load();
   downloadVideoBtn.href = videoUrl;
 
-  const poster = await generatePoster(videoUrl);
+  const poster = await generarPoster(videoUrl);
   if (poster) video.poster = poster;
 }
 
@@ -469,12 +450,12 @@ muteBtn.onclick = () => {
   muteBtn.textContent = video.muted ? "🔊 Activar sonido" : "🔇 Silencio";
 };
 
-const speeds = [1, 1.5, 2];
-let speedIndex = 0;
+const velocidades = [1, 1.5, 2];
+let idx = 0;
 speedBtn.onclick = () => {
-  speedIndex = (speedIndex + 1) % speeds.length;
-  video.playbackRate = speeds[speedIndex];
-  speedBtn.textContent = `⏩ ${speeds[speedIndex]}x`;
+  idx = (idx + 1) % velocidades.length;
+  video.playbackRate = velocidades[idx];
+  speedBtn.textContent = `⏩ ${velocidades[idx]}x`;
 };
 
 /* ================== INIT ================== */
