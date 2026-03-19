@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visor PDF y Video</title>
+  <!-- Fuente (opcional) -->
+  <!-- <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"> -->
+
+  <style>
+    :root{
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #22c55e;
+      --accent: #3b82f6;
+      --ring: rgba(34,197,94,0.35);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;  /* scroll suave */
+    }
+    body {
+      margin: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;         /* ahora puede crecer y permitir scroll */
+      background: radial-gradient(1200px 800px at 10% -10%, #122142 0%, #0b1220 50%, #070c17 100%);
+      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(6px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .brand .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      box-shadow: 0 0 15px var(--ring);
+    }
+    .brand span {
+      font-size: 1.05rem;
+      color: #f8fafc;
+    }
+
+    /* App layout */
+    .app {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: calc(100vh - 60px); /* mínimo visible; permite crecer y hacer scroll */
+    }
+
+    /* Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      height: fit-content;
+      position: sticky;
+      top: 84px; /* queda “pegada” al hacer scroll */
+    }
+    .sidebar-header {
+      padding: 14px 14px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f3f4f6;
+    }
+    .sidebar ul {
+      list-style: none;
+      margin: 0;
+      padding: 8px;
+      max-height: 60vh;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.25) transparent;
+    }
+    .sidebar li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      margin: 6px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+    .sidebar li:hover {
+      background: rgba(59,130,246,0.08);
+      border-color: rgba(59,130,246,0.25);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(59,130,246,0.15);
+    }
+    .sidebar li.active {
+      background: rgba(34,197,94,0.12);
+      border-color: rgba(34,197,94,0.45);
+      box-shadow: 0 4px 16px rgba(34,197,94,0.22);
+    }
+    .bullet {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--primary));
+      box-shadow: 0 0 12px var(--ring);
+      flex-shrink: 0;
+    }
+
+    /* Content */
+    .content {
+      display: grid;
+      grid-template-rows: auto auto; /* deja crecer ambas tarjetas y permite scroll de la página */
+      gap: 16px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .card-title {
+      font-size: 0.95rem;
+      color: #f3f4f6;
+      font-weight: 600;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #022c22;
+      background: linear-gradient(135deg, #6ee7b7, #22c55e);
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+
+    .pdf-viewer {
+      border: none;
+      width: 100%;
+      height: 70vh;            /* el PDF se ve grande y aún deja espacio para scroll */
+    }
+
+    .video-wrap {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 0;
+    }
+
+    .video-toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+    }
+    .btn {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      transition: background .2s, border-color .2s, transform .06s;
+      user-select: none;
+    }
+    .btn:hover {
+      background: rgba(59,130,246,0.12);
+      border-color: rgba(59,130,246,0.35);
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn[aria-pressed="true"]{
+      background: rgba(34,197,94,0.15);
+      border-color: rgba(34,197,94,0.5);
+    }
+    .spacer { flex: 1; }
+
+    .video-container {
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 320px;             /* más alto para verlo cómodo */
+    }
+    video {
+      max-height: 75vh;              /* si hay pantalla grande, aprovecha */
+      max-width: 100%;
+      width: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    /* Responsive */
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+      .pdf-viewer {
+        height: 60vh;
+      }
+      .video-container {
+        min-height: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="dot"></div>
+      <span>Visor PDF + Video</span>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Archivos PDF</h2>
+      </div>
+      <ul id="menuList">
+        <li data-pdf="pelon.pdf"
+            data-video="Desktop 2025.06.05 - 01.51.03.01.mp4"
+            data-poster="poster1.jpg">
+          <span class="bullet"></span> Ejemplo 1
+        </li>
+
+        <li data-pdf="ine.pdf"
+            data-video="Real gone - Sheryl Crow (sub español) [Cars].mp4"
+            data-poster="poster2.jpg">
+          <span class="bullet"></span> Ejemplo 2
+        </li>
+
+        <li data-pdf="Actividaddeingles_team2.pdf"
+            data-video="SMILE EVERYDAY song (feat. Cougar MacDowall, Jelzyart, ivi) [SMILING CRITTERS ANIMATED SONG].mp4"
+            data-poster="poster3.jpg">
+          <span class="bullet"></span> Ejemplo 3
+        </li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <!-- PDF -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">Visor PDF</div>
+          <a id="downloadPdfBtn" class="badge" href="#" download>Descargar PDF</a>
+        </div>
+        <iframe id="pdfFrame" class="pdf-viewer" title="Visor de PDF"></iframe>
+      </section>
+
+      <!-- Video -->
+      <section class="card video-wrap">
+        <div class="card-header">
+          <div class="card-title">Reproductor de Video</div>
+          <span class="badge">Multimedia</span>
+        </div>
+
+        <!-- Barra de acciones extra (además de los controles nativos) -->
+        <div class="video-toolbar">
+          <button id="playPauseBtn" class="btn" type="button">⏯️ Reproducir</button>
+          <button id="muteBtn" class="btn" type="button" aria-pressed="false">🔇 Silencio</button>
+          <div class="btn" id="speedBtn" role="button" aria-label="Velocidad">⏩ 1.0x</div>
+          <div class="spacer"></div>
+          <a id="downloadVideoBtn" class="btn" href="#" download>⬇️ Descargar video</a>
+        </div>
+
+        <div class="video-container" id="videoAnchor">
+          <video id="videoPlayer"
+                 controls
+                 preload="metadata"
+                 playsinline
+                 controlsList=""
+                 >
+            <source id="videoSource" src="" type="video/mp4">
+            Tu navegador no soporta video HTML5.
+          </video>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const pdfFrame = document.getElementById('pdfFrame');
+    const video = document.getElementById('videoPlayer');
+    const source = document.getElementById('videoSource');
+    const menu = document.getElementById('menuList');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    const downloadVideoBtn = document.getElementById('downloadVideoBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const speedBtn = document.getElementById('speedBtn');
+    const videoAnchor = document.getElementById('videoAnchor');
+
+    // Generar poster del primer frame (igual que la versión anterior)
+    async function generatePosterFromFirstFrame(videoEl, fallbackPoster) {
+      return new Promise((resolve) => {
+        const tempVideo = document.createElement('video');
+        tempVideo.crossOrigin = 'anonymous';
+        tempVideo.preload = 'auto';
+        tempVideo.muted = true;
+        tempVideo.src = videoEl.currentSrc || (videoEl.querySelector('source')?.src ?? '');
+
+        const onError = () => {
+          resolve(fallbackPoster || '');
+          cleanup();
+        };
+
+        const cleanup = () => {
+          tempVideo.removeEventListener('loadeddata', onLoadedData);
+          tempVideo.removeEventListener('error', onError);
+          tempVideo.removeEventListener('seeked', onSeeked);
+        };
+
+        const onLoadedData = () => {
+          try {
+            const seekTime = Math.min(0.15, Math.max(0, tempVideo.duration ? 0.12 : 0));
+            tempVideo.currentTime = seekTime;
+          } catch (e) {
+            onError();
+          }
+        };
+
+        const onSeeked = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = tempVideo.videoWidth || 640;
+            canvas.height = tempVideo.videoHeight || 360;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/jpeg', 0.85);
+            resolve(dataURL);
+          } catch (e) {
+            onError();
+          } finally {
+            cleanup();
+          }
+        };
+
+        tempVideo.addEventListener('loadeddata', onLoadedData, { once: true });
+        tempVideo.addEventListener('error', onError, { once: true });
+        tempVideo.addEventListener('seeked', onSeeked, { once: true });
+      });
+    }
+
+    async function loadContent(pdfFile, videoFile, posterFile) {
+      // Cargar PDF
+      pdfFrame.src = pdfFile;
+      downloadPdfBtn.href = pdfFile;
+
+      // Marcar activo en el menú
+      [...menu.querySelectorAll('li')].forEach(li => {
+        const isActive = li.getAttribute('data-pdf') === pdfFile &&
+                         li.getAttribute('data-video') === videoFile;
+        li.classList.toggle('active', isActive);
+      });
+
+      // Cargar Video
+      source.src = videoFile;
+      video.removeAttribute('poster');
+      video.load();
+      downloadVideoBtn.href = videoFile;
+
+      const applyPoster = async () => {
+        try {
+          const dataUrl = await generatePosterFromFirstFrame(video, posterFile);
+          if (dataUrl) {
+            video.setAttribute('poster', dataUrl);
+          } else if (posterFile) {
+            video.setAttribute('poster', posterFile);
+          }
+        } catch (_) {
+          if (posterFile) video.setAttribute('poster', posterFile);
+        }
+      };
+
+      if (video.readyState >= 1) {
+        applyPoster();
+      } else {
+        const onLoadedMetadata = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          applyPoster();
+        };
+        video.addEventListener('loadedmetadata', onLoadedMetadata);
+      }
+    }
+
+    // Delegación de eventos para los <li>
+    menu.addEventListener('click', (e) => {
+      const li = e.target.closest('li');
+      if (!li) return;
+      const pdf = li.getAttribute('data-pdf');
+      const vid = li.getAttribute('data-video');
+      const poster = li.getAttribute('data-poster') || '';
+      loadContent(pdf, vid, poster);
+      // Al seleccionar un item, hacemos scroll hasta el PDF (arriba). Si prefieres al video, quítalo.
+      // document.querySelector('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // --- Controles extra ---
+    playPauseBtn.addEventListener('click', () => {
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    });
+    video.addEventListener('play', () => {
+      playPauseBtn.textContent = '⏸️ Pausar';
+      // Al reproducir, bajar automáticamente al reproductor
+      videoAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    video.addEventListener('pause', () => {
+      playPauseBtn.textContent = '⏯️ Reproducir';
+    });
+
+    muteBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      muteBtn.setAttribute('aria-pressed', String(video.muted));
+      muteBtn.textContent = video.muted ? '🔊 Activar sonido' : '🔇 Silencio';
+    });
+
+    const speeds = [1.0, 1.5, 2.0];
+    let speedIdx = 0;
+    speedBtn.addEventListener('click', () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      video.playbackRate = speeds[speedIdx];
+      speedBtn.textContent = `⏩ ${speeds[speedIdx].toFixed(1)}x`;
+    });
+
+    // Selección inicial (Ejemplo 1)
+    window.addEventListener('DOMContentLoaded', () => {
+      const first = menu.querySelector('li');
+      if (first) {
+        const pdf = first.getAttribute('data-pdf');
+        const vid = first.getAttribute('data-video');
+        const poster = first.getAttribute('data-poster') || '';
+        loadContent(pdf, vid, poster);
+      }
+    });
+  </script>
+</body>
+</html>
