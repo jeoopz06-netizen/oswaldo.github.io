@@ -332,13 +332,25 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-/* ================== CONFIGURACIÓN ================== */
+/* ==== SUPABASE + PROTECCIÓN ==== */
 const SUPABASE_URL = "https://xsmxwjpgjfipxkgocitc.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXh3anBnamZpcHhrZ29jaXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjAwMjUsImV4cCI6MjA4NjgzNjAyNX0.KTWje5RPDXGChabHjeIEYwgygX_z58p0FpBmdA6cWD4";
+
+/* ✅ UN SOLO cliente */
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* 🔐 PROTECCIÓN DE SESIÓN */
+sb.auth.getSession().then(({ data }) => {
+  if (!data.session) {
+    window.location.replace("login.html");
+  }
+});
+</script>
+
+<script>
+/* ================== CONFIGURACIÓN ================== */
 const BUCKET = "pdfVideo";
 
-/* ✅ Cliente Supabase (NO usar 'supabase' como nombre) */
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ================== REFERENCIAS DOM ================== */
 const pdfFrame = document.getElementById("pdfFrame");
